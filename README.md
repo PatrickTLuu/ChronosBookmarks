@@ -1,5 +1,5 @@
 # Bookmark Database (Ongoing)
-MySql that stores bookmarks. Uses python as a backend
+MySql database that stores bookmarks. Uses python as a backend
 
 ## Features
 - List all bookmarks
