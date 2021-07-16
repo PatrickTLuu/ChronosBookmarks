@@ -31,10 +31,21 @@ def setup():
 
 # Get all bookmarks and prints them
 def getBookmarks():
-    myCursor.execute("SELECT * FROM bookmarks ORDER BY id")
+    myCursor.execute("SELECT name FROM bookmarks ORDER BY id")
     bookmarks = myCursor.fetchall()
     for x in bookmarks:
         print(x)
+
+
+def searchBookmark():
+    search = input("Search for bookmark: ")
+    myCursor.execute("SELECT * FROM bookmarks WHERE name LIKE '{}{}{}'".format("%", search, "%"))
+    bookmarks = myCursor.fetchall()
+    if bookmarks == []:
+        print("Unable to locate bookmark.")
+    else:
+        for x in bookmarks:
+            print(x)
 
 
 # Add a bookmark to the database
@@ -111,6 +122,7 @@ if __name__ == '__main__':
     active = True
     actions = {
         "list bookmarks": getBookmarks,
+        "search bookmark": searchBookmark,
         "add bookmark": addBookmark,
         "delete bookmark": deleteBookmark,
         "import bookmarks": importBookmarks,
@@ -120,7 +132,7 @@ if __name__ == '__main__':
 
     while active:
         try:
-            print("\n\nActions avalible: List Bookmarks, Add Bookmark, Delete Bookmark, Import Bookmarks, Exit")
+            print("\n\nActions avalible: List Bookmarks, Search Bookmark, Add Bookmark, Delete Bookmark, Import Bookmarks, Exit")
             action = str(input(">>> ")).lower()
             actions[action]()
 
