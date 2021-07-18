@@ -1,3 +1,4 @@
+from re import search
 import mysql.connector
 import import_html as myHTML
 from mysql.connector.errors import DatabaseError
@@ -37,8 +38,12 @@ def getBookmarks():
         print(x)
 
 
-def searchBookmark():
-    search = input("Search for bookmark: ")
+def searchBookmark(mode):
+    if mode == "X9itcJqQ43":
+        search = input("Search for bookmark: ")
+    else:
+        search = mode
+    
     myCursor.execute("SELECT * FROM bookmarks WHERE name LIKE '{}{}{}'".format("%", search, "%"))
     bookmarks = myCursor.fetchall()
     if bookmarks == []:
@@ -59,6 +64,26 @@ def addBookmark():
     myCursor.execute(sql, val)
     mydb.commit()
     print("\nBookmark Added.")
+
+
+def editBookmark(mode):
+    sql = "UPDATE bookmarks SET {column} = '{value}' WHERE name LIKE '%{search}%'"
+    oldName = input("Enter name of bookmark to update: ")
+    searchBookmark(oldName)
+    toUpdate = input("What do you want to update? ").lower()
+
+    if toUpdate == "name":
+        newEntry = str(input("Enter new name of bookmark: "))
+    elif toUpdate == "url":
+        newEntry = str(input("Enter new url: "))
+    elif toUpdate == "notes":
+        newEntry = str(input("Enter new notes: "))
+    else:
+        return
+
+    myCursor.execute(sql.format(column = toUpdate, value = newEntry, search = oldName))
+    mydb.commit()
+    print("Updated {column} of {search}.".format(column = toUpdate, search = oldName))
 
 
 # Delete a bookmark from database
@@ -124,6 +149,7 @@ if __name__ == '__main__':
         "list bookmarks": getBookmarks,
         "search bookmark": searchBookmark,
         "add bookmark": addBookmark,
+        "edit bookmark": editBookmark,
         "delete bookmark": deleteBookmark,
         "import bookmarks": importBookmarks,
         "exit": exit
@@ -132,9 +158,11 @@ if __name__ == '__main__':
 
     while active:
         try:
-            print("\n\nActions avalible: List Bookmarks, Search Bookmark, Add Bookmark, Delete Bookmark, Import Bookmarks, Exit")
+            print("\n\nActions avalible: List Bookmarks, Search Bookmark, Add Bookmark, Edit Bookmark, Delete Bookmark, Import Bookmarks, Exit")
             action = str(input(">>> ")).lower()
-            actions[action]()
+            args = "X9itcJqQ43"
+
+            actions[action](args)
 
         except KeyError:
             pass
