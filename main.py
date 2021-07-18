@@ -31,7 +31,7 @@ def setup():
 
 
 # Get all bookmarks and prints them
-def getBookmarks():
+def getBookmarks(mode):
     myCursor.execute("SELECT name FROM bookmarks ORDER BY id")
     bookmarks = myCursor.fetchall()
     for x in bookmarks:
@@ -54,7 +54,7 @@ def searchBookmark(mode):
 
 
 # Add a bookmark to the database
-def addBookmark():
+def addBookmark(mode):
     sql = "INSERT INTO bookmarks (name, url, notes) VALUES (%s, %s, %s)"
     name = str(input("Enter name of bookmark: "))
     url = str(input("Enter url of bookmark: "))
@@ -87,7 +87,7 @@ def editBookmark(mode):
 
 
 # Delete a bookmark from database
-def deleteBookmark():
+def deleteBookmark(mode):
     sql = "DELETE FROM bookmarks WHERE name = %s"
     name = (input("Enter name of bookmark to delete: "), )
     confirm = str(input("Are you sure (Y/N)? ")) == "Y"
@@ -101,7 +101,7 @@ def deleteBookmark():
 
 
 #Imports bookmarks from html
-def importBookmarks():
+def importBookmarks(mode):
     error = []
     parser = myHTML.BookmarkHTMLParser()
     file = "C:/Users/patri.LAPTOP-GHL2QTQE/Documents/Bookmarks.html"
