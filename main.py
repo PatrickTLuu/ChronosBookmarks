@@ -1,4 +1,3 @@
-from re import search
 import mysql.connector
 import import_html as myHTML
 from mysql.connector.errors import DatabaseError
@@ -29,7 +28,6 @@ def setup():
         name VARCHAR(255), url VARCHAR(255), notes VARCHAR(255))""")
 
 
-
 # Get all bookmarks and prints them
 def getBookmarks(mode):
     myCursor.execute("SELECT name FROM bookmarks ORDER BY id")
@@ -56,11 +54,16 @@ def searchBookmark(mode):
 # Add a bookmark to the database
 def addBookmark(mode):
     sql = "INSERT INTO bookmarks (name, url, notes) VALUES (%s, %s, %s)"
-    name = str(input("Enter name of bookmark: "))
-    url = str(input("Enter url of bookmark: "))
-    notes = str(input("Notes to add to bookmark: "))
 
-    val = cleanBookmark(name, url, notes)
+    if mode == "X9itcJqQ43":
+        name = str(input("Enter name of bookmark: "))
+        url = str(input("Enter url of bookmark: "))
+        notes = str(input("Notes to add to bookmark: "))
+        val = clean("Bookmark", name, url, notes)
+
+    else:
+        val = mode
+
     myCursor.execute(sql, val)
     mydb.commit()
     print("\nBookmark Added.")
@@ -109,22 +112,20 @@ def importBookmarks(mode):
     parser.feed(bookmarks)
 
 
-    sql = "INSERT INTO bookmarks (name, url, notes) VALUES (%s, %s, %s)"
     for bookmark in myHTML.allBookmarks:
         name = bookmark[1]
         url = bookmark[0][1]
         notes = ""
 
-        val = cleanBookmark(name, url, notes)
-        search = val[0].replace(" ", "_")
+        val = clean("bookmark", (name, url, notes))
+        search = clean("search", name)
 
         myCursor.execute("SELECT id FROM bookmarks WHERE name LIKE '%s'" % search)
         findBookmark = myCursor.fetchall()
 
         if findBookmark == []:
             try:
-                myCursor.execute(sql, val)
-                mydb.commit()
+                addBookmark(val)
             
             except mysql.connector.errors.DataError:
                 error.append(val)
@@ -135,11 +136,20 @@ def importBookmarks(mode):
 
 
 #Clean bookmarks
-def cleanBookmark(name, url, notes):
-    cleanName = name.replace("'", "")
-    cleanUrl = url.split("?", 1)[0]
-    CleanNotes = notes.replace("'", "")
-    return (cleanName, cleanUrl, CleanNotes)
+def clean(mode, toClean):
+    if mode == "bookmark":
+        cleaned = []
+        for x in toClean:
+            x = x.replace("?", "")
+            x = x.replace("'", "")
+            cleaned.append(x)
+
+    elif mode == "search":
+        toClean = toClean.replace(" ", "_")
+        toClean = "%{}%".format(toClean)
+        cleaned = toClean
+    
+    return cleaned
 
 
 
@@ -162,8 +172,8 @@ if __name__ == '__main__':
             action = str(input(">>> ")).lower()
             args = "X9itcJqQ43"
 
-            actions[action](args)
-
+            toPrint = actions[action](args)
+            print(toPrint)
         except KeyError:
             pass
 
