@@ -2,6 +2,10 @@ import mysql.connector
 import import_html as myHTML
 from mysql.connector.errors import DatabaseError
 
+"""
+Notes:
+X9itcJqQ43 = Random string stating that a function was called manually
+"""
 
 # Opens the database bookmarks if it exists and if not, creates one
 def setup():
@@ -9,6 +13,7 @@ def setup():
     global myCursor
 
     try:
+        # Tries to open the database with bookmarks in it
         mydb = mysql.connector.connect(
             host="localhost", 
             user="USERNAME", 
@@ -17,6 +22,7 @@ def setup():
         myCursor = mydb.cursor()
 
     except DatabaseError:
+        # If there is no database then create a database
         mydb = mysql.connector.connect(
             host="localhost", 
             user="USERNAME", 
@@ -30,88 +36,135 @@ def setup():
 
 # Get all bookmarks and prints them
 def getBookmarks(mode):
-    myCursor.execute("SELECT name FROM bookmarks ORDER BY id")
+    myCursor.execute("SELECT * FROM bookmarks ORDER BY id")
     bookmarks = myCursor.fetchall()
+    toPrint = []
     for x in bookmarks:
-        print(x)
+        toPrint.append("{}\n".format(x))
 
+    return toPrint
 
 def searchBookmark(mode):
+    # sql script to execute
+    sql = "SELECT * FROM bookmarks WHERE name LIKE '{}{}{}'"
+
+    # Gets input from user if called in human mode
     if mode == "X9itcJqQ43":
-        search = input("Search for bookmark: ")
+        search = clean("search", input("Search for bookmark: "))
+
+    # Otherwise, the search query was stored in the mode
     else:
         search = mode
     
-    myCursor.execute("SELECT * FROM bookmarks WHERE name LIKE '{}{}{}'".format("%", search, "%"))
+    # Selects bookmarks that match search query
+    myCursor.execute(sql.format("%", search, "%"))
     bookmarks = myCursor.fetchall()
+
+    # If no bookmarks were found return False with error statement
     if bookmarks == []:
-        print("Unable to locate bookmark.")
+        return (False, "No bookmark matches the search query.")
+
+    # Otherwise return True with list of all bookmarks
     else:
+        toPrint = []
         for x in bookmarks:
-            print(x)
+            toPrint.append("{}\n".format(toPrint))
+        return (True, toPrint)
 
 
 # Add a bookmark to the database
 def addBookmark(mode):
-    sql = "INSERT INTO bookmarks (name, url, notes) VALUES (%s, %s, %s)"
+    # sql script to execute
+    sql = "INSERT INTO bookmarks (name, url, notes) VALUES ({},{},{})"
 
+    # Gets input from user if called in human mode
     if mode == "X9itcJqQ43":
         name = str(input("Enter name of bookmark: "))
         url = str(input("Enter url of bookmark: "))
         notes = str(input("Notes to add to bookmark: "))
         val = clean("Bookmark", name, url, notes)
 
+    # Otherwise the values were stored in the mode
     else:
         val = mode
 
-    myCursor.execute(sql, val)
+    # Adds bookmark to database
+    myCursor.execute(sql.format(val))
     mydb.commit()
-    print("\nBookmark Added.")
+    return (True, "Bookmark Added.")
 
 
+# Edit bookmarks already made
 def editBookmark(mode):
+    # sql script to execute
     sql = "UPDATE bookmarks SET {column} = '{value}' WHERE name LIKE '%{search}%'"
-    oldName = input("Enter name of bookmark to update: ")
-    searchBookmark(oldName)
-    toUpdate = input("What do you want to update? ").lower()
 
-    if toUpdate == "name":
-        newEntry = str(input("Enter new name of bookmark: "))
-    elif toUpdate == "url":
-        newEntry = str(input("Enter new url: "))
-    elif toUpdate == "notes":
-        newEntry = str(input("Enter new notes: "))
-    else:
-        return
+    # Checks if the bookmark actually exists
+    isValid = False
+    while not isValid:
+        oldName = input("Enter name of bookmark to update: ")
+        isValid = searchBookmark(oldName) 
 
+
+    # Checks if option is valid
+    isValid = False
+    while not isValid:
+        toUpdate = input("What do you want to update? ").lower()
+
+        if toUpdate == "name":
+            newEntry = str(input("Enter new name of bookmark: "))
+        elif toUpdate == "url":
+            newEntry = str(input("Enter new url: "))
+        elif toUpdate == "notes":
+            newEntry = str(input("Enter new notes: "))
+        else:
+            pass
+
+    # Edits bookmark in database
     myCursor.execute(sql.format(column = toUpdate, value = newEntry, search = oldName))
     mydb.commit()
-    print("Updated {column} of {search}.".format(column = toUpdate, search = oldName))
+    return (True, "Updated {column} of {search}.".format(column = toUpdate, search = oldName))
 
 
 # Delete a bookmark from database
 def deleteBookmark(mode):
+    # sql script to execute
     sql = "DELETE FROM bookmarks WHERE name = %s"
-    name = (input("Enter name of bookmark to delete: "), )
-    confirm = str(input("Are you sure (Y/N)? ")) == "Y"
 
-    if confirm:
+    # Gets input from user if called in human mode
+    if mode == "X9itcJqQ43":
+        name = (input("Enter name of bookmark to delete: "), )
+        confirm = str(input("Are you sure (Y/N)? ")) == "Y"
+
+        # Confirms deletion of bookmark
+        if confirm:
+            myCursor.execute(sql, name)
+            mydb.commit()
+            return (True, "Bookmark deleted.")
+        else:
+            return (False, "Canceling Delete.")
+
+    # Otherwise the value was stored in mode
+    else:
+        name = mode
         myCursor.execute(sql, name)
         mydb.commit()
-        print("\nBookmark deleted.")
-    else:
-        print("\nCanceling Delete.")
+
+
 
 
 #Imports bookmarks from html
 def importBookmarks(mode):
-    error = []
+    error = [] # Stores bookmarks that failed to be added
+
+    # Opens the html parser and passes the bookmark file through
     parser = myHTML.BookmarkHTMLParser()
-    file = "C:/Users/patri.LAPTOP-GHL2QTQE/Documents/Bookmarks.html"
+    file = input("Enter path of bookmark: ")
     bookmarks = open(file).read()
     parser.feed(bookmarks)
 
 
+    # For all the bookmarks from html parse
     for bookmark in myHTML.allBookmarks:
         name = bookmark[1]
         url = bookmark[0][1]
@@ -120,23 +173,27 @@ def importBookmarks(mode):
         val = clean("bookmark", (name, url, notes))
         search = clean("search", name)
 
-        myCursor.execute("SELECT id FROM bookmarks WHERE name LIKE '%s'" % search)
-        findBookmark = myCursor.fetchall()
+        # Checks if the bookmark already exists
+        findBookmark = search(name)
 
-        if findBookmark == []:
+
+        # If bookmark doesn't exist
+        if not findBookmark:
             try:
                 addBookmark(val)
             
+            # If any of the values are too long, appends to error
             except mysql.connector.errors.DataError:
                 error.append(val)
 
-
-    print("\n%s bookmarks imported." % str(len(myHTML.allBookmarks)+1))
-    print("Unable to import: %s" % error)
+    # Returns number of bookmarks imported and bookmarks not imported
+    return ("{} bookmarks imported.\nUnable to import: {}".format(len(myHTML.allBookmarks)+1, error))
 
 
 #Clean bookmarks
 def clean(mode, toClean):
+
+    # If cleaning a bookmark
     if mode == "bookmark":
         cleaned = []
         for x in toClean:
@@ -144,6 +201,7 @@ def clean(mode, toClean):
             x = x.replace("'", "")
             cleaned.append(x)
 
+    # If cleaning a search query
     elif mode == "search":
         toClean = toClean.replace(" ", "_")
         toClean = "%{}%".format(toClean)
@@ -173,7 +231,7 @@ if __name__ == '__main__':
             args = "X9itcJqQ43"
 
             toPrint = actions[action](args)
-            print(toPrint)
+            print("\n" + toPrint)
         except KeyError:
             pass
 
