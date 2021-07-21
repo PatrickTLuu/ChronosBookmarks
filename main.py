@@ -1,10 +1,11 @@
+from tkinter.constants import X
 import mysql.connector
 import import_html as myHTML
 from mysql.connector.errors import DatabaseError
 
 """
 Notes:
-X9itcJqQ43 = Random string stating that a function was called manually
+X9itcJqQ43 = Random string stating that a function was called manually, used to avoid search query conflict
 """
 
 # Opens the database bookmarks if it exists and if not, creates one
@@ -35,29 +36,34 @@ def setup():
 
 
 # Get all bookmarks and prints them
-def getBookmarks(mode):
+def listBookmarks():
     myCursor.execute("SELECT * FROM bookmarks ORDER BY id")
     bookmarks = myCursor.fetchall()
     toPrint = []
     for x in bookmarks:
-        toPrint.append("{}\n".format(x))
+        toPrint.append(x)
 
-    return toPrint
+    return (True, toPrint)
 
-def searchBookmark(mode):
+def searchBookmark(mode = "X9itcJqQ43", accuracy = None):
     # sql script to execute
-    sql = "SELECT * FROM bookmarks WHERE name LIKE '{}{}{}'"
-
-    # Gets input from user if called in human mode
-    if mode == "X9itcJqQ43":
-        search = clean("search", input("Search for bookmark: "))
-
-    # Otherwise, the search query was stored in the mode
+    if accuracy == "specific":
+        sql = "SELECT * FROM bookmarks WHERE name = '{}'"
+        search = clean("search", mode)
+    
     else:
-        search = mode
+        sql = "SELECT * FROM bookmarks WHERE name LIKE '{}'"
+
+        # Gets input from user if called in human mode
+        if mode == "X9itcJqQ43":
+            search = clean("search", input("\nSearch for bookmark: "))
+
+        # Otherwise, the search query was stored in the mode
+        else:
+            search = clean("search", mode)
     
     # Selects bookmarks that match search query
-    myCursor.execute(sql.format("%", search, "%"))
+    myCursor.execute(sql.format(search))
     bookmarks = myCursor.fetchall()
 
     # If no bookmarks were found return False with error statement
@@ -68,42 +74,43 @@ def searchBookmark(mode):
     else:
         toPrint = []
         for x in bookmarks:
-            toPrint.append("{}\n".format(toPrint))
+            toPrint.append(x)
         return (True, toPrint)
 
 
 # Add a bookmark to the database
-def addBookmark(mode):
+def addBookmark(mode = "X9itcJqQ43"):
     # sql script to execute
-    sql = "INSERT INTO bookmarks (name, url, notes) VALUES ({},{},{})"
+    sql = "INSERT INTO bookmarks (name, url, notes) VALUES ('{}','{}','{}')"
 
     # Gets input from user if called in human mode
     if mode == "X9itcJqQ43":
-        name = str(input("Enter name of bookmark: "))
+        name = str(input("\nEnter name of bookmark: "))
         url = str(input("Enter url of bookmark: "))
         notes = str(input("Notes to add to bookmark: "))
-        val = clean("Bookmark", name, url, notes)
+        val = clean("bookmark", (name, url, notes))
 
     # Otherwise the values were stored in the mode
     else:
-        val = mode
+        val = clean(mode)
 
     # Adds bookmark to database
-    myCursor.execute(sql.format(val))
+    myCursor.execute(sql.format(*val))
     mydb.commit()
     return (True, "Bookmark Added.")
 
 
 # Edit bookmarks already made
-def editBookmark(mode):
+def editBookmark():
     # sql script to execute
-    sql = "UPDATE bookmarks SET {column} = '{value}' WHERE name LIKE '%{search}%'"
+    sql = "UPDATE bookmarks SET {column} = '{value}' WHERE name LIKE '{search}'"
 
-    # Checks if the bookmark actually exists
+    # Checks if the one bookmark  exists
     isValid = False
     while not isValid:
         oldName = input("Enter name of bookmark to update: ")
-        isValid = searchBookmark(oldName) 
+        search = searchBookmark(oldName, "specific")
+        isValid = search[0] and len(search[1]) == 1
 
 
     # Checks if option is valid
@@ -113,10 +120,13 @@ def editBookmark(mode):
 
         if toUpdate == "name":
             newEntry = str(input("Enter new name of bookmark: "))
+            isValid = True
         elif toUpdate == "url":
             newEntry = str(input("Enter new url: "))
+            isValid = True
         elif toUpdate == "notes":
             newEntry = str(input("Enter new notes: "))
+            isValid = True
         else:
             pass
 
@@ -127,26 +137,39 @@ def editBookmark(mode):
 
 
 # Delete a bookmark from database
-def deleteBookmark(mode):
+def deleteBookmark(mode = "X9itcJqQ43"):
     # sql script to execute
-    sql = "DELETE FROM bookmarks WHERE name = %s"
+    sql = "DELETE FROM bookmarks WHERE name = '{}'"
 
     # Gets input from user if called in human mode
     if mode == "X9itcJqQ43":
-        name = (input("Enter name of bookmark to delete: "), )
-        confirm = str(input("Are you sure (Y/N)? ")) == "Y"
+        name = input("Enter name of bookmark to delete: ")
+        exists = searchBookmark(name, "specific")
 
-        # Confirms deletion of bookmark
-        if confirm:
-            myCursor.execute(sql, name)
-            mydb.commit()
-            return (True, "Bookmark deleted.")
+        # If bookmark exists and returned only one bookmark
+        if exists[0] and len(exists[1]) == 1:
+            print(exists[1])
+            confirm = str(input("Are you sure (Y/N)? ")) == "Y"
+
+            # Confirms deletion of bookmark
+            if confirm:
+                myCursor.execute(sql.format(name))
+                mydb.commit()
+                return (True, "Bookmark deleted.")
+            else:
+                return (False, "Canceling Delete.")
+
+        # If there was more than one bookmark
+        elif exists[0] and len(exists[1]) > 1:
+            return (False, "Search query too broad.")
+
+        # Otherwise bookmark doesn't exist
         else:
-            return (False, "Canceling Delete.")
+            return (False, "Bookmark does not exist.")
 
     # Otherwise the value was stored in mode
     else:
-        name = mode
+        name = clean("search", mode)
         myCursor.execute(sql, name)
         mydb.commit()
 
@@ -154,7 +177,7 @@ def deleteBookmark(mode):
 
 
 #Imports bookmarks from html
-def importBookmarks(mode):
+def importBookmarks():
     error = [] # Stores bookmarks that failed to be added
 
     # Opens the html parser and passes the bookmark file through
@@ -170,11 +193,10 @@ def importBookmarks(mode):
         url = bookmark[0][1]
         notes = ""
 
-        val = clean("bookmark", (name, url, notes))
-        search = clean("search", name)
+        val = (name, url, notes)
 
         # Checks if the bookmark already exists
-        findBookmark = search(name)
+        findBookmark = searchBookmark(name, "specific")
 
 
         # If bookmark doesn't exist
@@ -187,7 +209,7 @@ def importBookmarks(mode):
                 error.append(val)
 
     # Returns number of bookmarks imported and bookmarks not imported
-    return ("{} bookmarks imported.\nUnable to import: {}".format(len(myHTML.allBookmarks)+1, error))
+    return (True, "{} bookmarks imported.\nUnable to import: {}".format(len(myHTML.allBookmarks)+1, error))
 
 
 #Clean bookmarks
@@ -200,9 +222,11 @@ def clean(mode, toClean):
             x = x.replace("?", "")
             x = x.replace("'", "")
             cleaned.append(x)
+        cleaned = tuple(cleaned)
 
     # If cleaning a search query
     elif mode == "search":
+        toClean = toClean.replace("'", "")
         toClean = toClean.replace(" ", "_")
         toClean = "%{}%".format(toClean)
         cleaned = toClean
@@ -214,7 +238,7 @@ def clean(mode, toClean):
 if __name__ == '__main__':
     active = True
     actions = {
-        "list bookmarks": getBookmarks,
+        "list bookmarks": listBookmarks,
         "search bookmark": searchBookmark,
         "add bookmark": addBookmark,
         "edit bookmark": editBookmark,
@@ -228,10 +252,18 @@ if __name__ == '__main__':
         try:
             print("\n\nActions avalible: List Bookmarks, Search Bookmark, Add Bookmark, Edit Bookmark, Delete Bookmark, Import Bookmarks, Exit")
             action = str(input(">>> ")).lower()
-            args = "X9itcJqQ43"
 
-            toPrint = actions[action](args)
-            print("\n" + toPrint)
+            toPrint = actions[action]()
+
+            # If the function returned a tuple or list to be printed, print each value
+            if isinstance(toPrint[1], (list, tuple)):
+                for x in toPrint[1]:
+                    print("\n{}".format(x))
+
+            # Otherwise just print returned value
+            else:
+                print("\n{}".format(toPrint[1]))
+
         except KeyError:
             pass
 
