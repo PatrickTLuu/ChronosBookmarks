@@ -1,5 +1,5 @@
 # Bookmark Database (Ongoing)
-MySql database that stores bookmarks. Uses python as a backend
+MySql database that stores bookmarks. Has a command line interface, using python as a backend
 
 ## Features
 - List all bookmarks
@@ -10,5 +10,19 @@ MySql database that stores bookmarks. Uses python as a backend
 - Import from html file
 
 ## Features to come
-- Graphical interface
 - Filters
+
+## Installation
+Clone the git repository
+`git clone https://github.com/PatrickTLuu/BookmarkDatabase.git`
+
+Use a text editor to create a auth.config file in the repository
+`cd BookmarkDatabase`
+`vim auth.config`
+
+Configure mysql database authentication
+`database=bookmarks`
+`username=         `
+`password=         `
+
+You're ready to use any of the commands
