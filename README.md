@@ -17,12 +17,16 @@ Clone the git repository
 `git clone https://github.com/PatrickTLuu/BookmarkDatabase.git`
 
 Use a text editor to create a auth.config file in the repository
-`cd BookmarkDatabase`
-`vim auth.config`
+```bash
+cd BookmarkDatabase
+vim auth.config
+```
 
 Configure mysql database authentication
-`database=bookmarks`
-`username=         `
-`password=         `
+```conf
+database=bookmarks
+username=       
+password=   
+```      
 
 You're ready to use any of the commands
