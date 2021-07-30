@@ -10,7 +10,7 @@ subparsers = parser.add_subparsers(title = "sub commands")
 
 # Creates sub commands
 class subParsers():
-    def __init__(self, name, helpStr, args):
+    def __init__(self, name, helpStr, args) -> None:
         self = subparsers.add_parser(name, help=helpStr)
 
         for arg in args:
@@ -34,7 +34,7 @@ importCmd = subParsers("import", "import bookmarks from html file", [("path", "p
 if __name__ == '__main__':
 
     # Run setup
-    commands.setup()
+    commands.authenticate()
     parser.parse_args()
 
     actions = {
@@ -57,6 +57,6 @@ if __name__ == '__main__':
 
     # Otherwise just print returned value
     else:
-        print("\n{}".format(toPrint[1]))
+        print("\n{}".format(toPrint))
 
     print("\n")
