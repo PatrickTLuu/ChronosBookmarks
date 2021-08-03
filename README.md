@@ -1,4 +1,4 @@
-# Bookmark Database (Ongoing)
+# Chronos Bookmark Database (Ongoing)
 MySql database that stores bookmarks. Has a command line interface, using python as a backend
 
 ## Features
@@ -24,9 +24,12 @@ vim auth.config
 
 Configure mysql database authentication
 ```conf
-database=bookmarks
+database=ChronosBookmarks
 username=       
 password=   
 ```      
 
-You're ready to use any of the commands
+### Library Dependencies
+- MySQL Connector
+- Argparse
+- HTML Parser
