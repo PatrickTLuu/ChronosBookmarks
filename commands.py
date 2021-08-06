@@ -4,8 +4,23 @@ from mysql.connector.errors import DatabaseError
 from datetime import date
 
 
-# Opens the database bookmarks if it exists and if not, creates one
+# Raised if a search returns 0
+class NotFoundError(Exception):
+    pass
+
+
+# Raised if a duplicate entry would be created
+class AlreadyExistsError(Exception):
+    pass
+
+
 def setup(db, username, password) -> None:
+    """
+    Opens the database chronosbookmarks and 
+    connects to the bookmarks table. Creates any
+    missing requirements.
+    """
+
     global mydb 
     global myCursor
     global DATABASE
@@ -35,9 +50,12 @@ def setup(db, username, password) -> None:
         %s VARCHAR(255), %s VARCHAR(255), %s VARCHAR(255))""", *COLUMNS)
 
 
-# Authenticate mysql user
 def authenticate() -> None:
-    # Looks for an auth file in its directory
+    """
+    Opens a auth.config file in the current directory
+    anc checks if it has all the required values
+    """
+
     file = open("auth.config").read()
     auth = file.split("\n")
 
@@ -49,114 +67,109 @@ def authenticate() -> None:
         setup(*auths)
 
 
-# Get all bookmarks and prints them
-def listBookmarks() -> list:
-    sql = "SELECT * FROM bookmarks ORDER BY id"
-    bookmarks = []
-    myCursor.execute(sql)
-    for x in myCursor.fetchall():
-        bookmarks.append(x)
 
-    return (True, bookmarks)
+def listBookmarks() -> None:
+    """
+    Passes a wild card to the search class
+    to find all bookmarks
+    """
 
-
-def searchBookmark(query, accuracy = None) -> tuple:
-    # sql script to execute
-    if accuracy == "-s":
-        sql = "SELECT * FROM bookmarks WHERE name = %s"
-        search = clean.cleanBookmarkValue(query)
-    
-    else:
-        sql = "SELECT * FROM bookmarks WHERE name LIKE %s"
-        search = clean.cleanQuery(query)
-    
-    # Selects bookmarks that match search query
-    myCursor.execute(sql, (search, ))     
-    fetchBookmarks = myCursor.fetchall()
-
-    # If no bookmarks were found return False with error statement
-    if fetchBookmarks == []:
-        return (False, "No bookmark matches the search query.")
-
-    # Otherwise return True with list of all bookmarks
-    else:
-        bookmarks = []
-        for x in fetchBookmarks:
-            bookmarks.append(x)
-        return (True, bookmarks)
+    query = "%"
+    list = search(query, "-n")
+    return list
 
 
-# Add a bookmark to the database
+
 def addBookmark(name, url, notes) -> str:
+    """
+    Add a bookmark to the database
+    """
+
     # sql script to execute
     sql = "INSERT INTO bookmarks (name, url, notes) VALUES (%s, %s, %s)"
-    val = clean.cleanBookmarkValues((name, url, notes))
+    bookmark = search(name, "-e")
+    val = (name, url, notes)
 
+    if bookmark.exists > 0:
+        raise AlreadyExistsError("Can't add bookmark. Name already exists")
 
-    # Adds bookmark to database
-    myCursor.execute(sql, val)
-    mydb.commit()
-
-    return "Bookmark Added."
-
-
-# Edit bookmarks already made
-def editBookmark(query, column, value) -> str:
-    # sql script to execute
-    if column == "name":
-        sql = "UPDATE bookmarks SET name = %s WHERE name = %s"
-    elif column == "url":
-        sql = "UPDATE bookmarks SET url = %s WHERE name = %s"
-    elif column == "notes":
-        sql = "UPDATE bookmarks SET notes = %s WHERE name = %s"
     else:
-        return (False, "Column does not exist.")
+        # Adds bookmark to database
+        myCursor.execute(sql, val)
+        mydb.commit()
 
-    val = (clean.cleanBookmarkValues((value, query)))
+        return "Bookmark Added."
 
+
+
+def editBookmark(name, column, value) -> str:
+    """
+    Edit bookmarks in the database
+    """
+
+    sql = {
+        "name": "UPDATE bookmarks SET name = %s WHERE name = %s",
+        "url": "UPDATE bookmarks SET url = %s WHERE name = %s",
+        "notes": "UPDATE bookmarks SET notes = %s WHERE name = %s"
+    }
+    val = (value, name)
+    
     # Checks if the one bookmark exists
-    search = searchBookmark(query, "-s")
-    if not search[0]:
-        return (False, "Bookmark does not exist.")
+    bookmark = search(name, "-e")
 
-    # Edits bookmark in database
-    myCursor.execute(sql, val)
-    mydb.commit()
-    return "Updated {} of {}.".format(column, query)
+    if bookmark.exists < 1:
+        raise NotFoundError(f"Unable to find bookmark with name {name}.")
+
+    elif bookmark.exists > 1:
+        raise NotFoundError(f"Too many results recieved.")
+
+    else:
+
+        # Edits bookmark in database
+        try:
+            myCursor.execute(sql[column], val)
+            mydb.commit()
+            return f"Updated {column} of {name}."
+
+        except KeyError:
+            raise NotFoundError(f"Unable to find column with name {column}")
 
 
-# Delete a bookmark from database
 def deleteBookmark(name) -> str :
+    """
+    Delete a bookmark from the database
+    """
+
     # sql script to execute
     sql = "DELETE FROM bookmarks WHERE name = %s"
-    exists = searchBookmark(name, "-s")
+    bookmark = search(name, "-e")
 
 
-    # If bookmark exists and returned only one bookmark
-    if exists[0] and len(exists[1]) == 1:
-        print("\n{}".format(exists[1]))
-        confirm = str(input("Are you sure (Y/N)? ")) == "Y"
+    # If only one bookmark is returned
+    if bookmark.exists == 1:
+        confirm = input("Are you sure (Y/N)? ") == "Y"
 
-        # Confirms deletion of bookmark
         if confirm:
-            name = clean.cleanQuery(name)
             myCursor.execute(sql, (name, ))
             mydb.commit()
             return "Bookmark deleted."
         else:
             return "Canceling Delete."
 
-    # If there was more than one bookmark
-    elif exists[0] and len(exists[1]) > 1:
-        return "Search query too broad."
+    # Raise error if more than 1 result
+    elif bookmark.exists > 1:
+        raise NotFoundError(f"Too many results recieved.")
 
-    # Otherwise bookmark doesn't exist
+    # Raise error if not able to find a result
     else:
-        return "Bookmark does not exist."
+        raise NotFoundError(f"Unable to find bookmark with name {name}.")
 
 
-#Imports bookmarks from html
 def importBookmarks(file) -> str:
+    """
+    Import bookmarks from an html file
+    """
+
     errors = open("log.txt", "a") # Stores bookmarks that failed to be added
     errors.write(date.today().strftime("\n\n%d/%m/%y\n"))
 
@@ -168,56 +181,67 @@ def importBookmarks(file) -> str:
 
 
     # For all the bookmarks from html parse
+    importNumber = 0
+    errorNumber = 0
     for bookmark in myHTML.allBookmarks:
-        name = bookmark[1]
-        url = bookmark[0][1]
+        name, url = bookmark
         notes = ""
 
         # Checks if the bookmark already exists
-        findBookmark = searchBookmark(name, "-s")[0]
+        bookmark = search(name, "-e")
 
 
         # If bookmark doesn't exist
-        if not findBookmark:
+        if bookmark.exists == 0:
             try:
                 addBookmark(name, url, notes)
+                importNumber += 1
             
             # If any of the values are too long, appends to error
-            except mysql.connector.errors.DataError:
-                errors.write("{}, {}, {}\n".format(name, url, notes))
+            except mysql.connector.errors.DatabaseError:
+                errors.write(f"Bookmark too long: {name}, {url}, {notes}\n")
+                errorNumber += 1
+
+        else:
+            errors.write(f"Bookmark name already exists: {name}, {url}, {notes}\n")
+            errorNumber += 1
+
 
     # Returns number of bookmarks imported and bookmarks not imported
-    return "{} bookmarks imported. Errors stored in log.txt.".format(len(myHTML.allBookmarks)+1)
+    return f"{importNumber} bookmarks imported. {errorNumber} errors stored in log.txt."
 
 
-#Clean bookmarks
-class clean:
+class search:
+    """
+    Search class to allow for expansion
+    on different search queries
+    """
 
-    # Cleans values to be used in bookmarks
-    def cleanBookmarkValue(toClean) -> str:
-        illegalChar = ["'", "\"", "%"]
+    def __init__(self, query, type="-n") -> None:
+        self.query = query
+        functions = {
+        "-e": search.exists_search,
+        "-n": search.bookmark_name_search
+        }
 
-        for char in illegalChar:
-            toClean = toClean.replace(char, "")
-
-        return toClean
+        
+        functions[type](self)
 
 
-    def cleanBookmarkValues(toClean) -> tuple:
-        cleaned = []
-        for value in toClean:
-            cleaned.append(clean.cleanBookmarkValue(value))
+    # Finds how many bookmarks match the search query exactly
+    def exists_search(self) -> None:
+        sql = "SELECT id FROM bookmarks WHERE name = %s"
+        myCursor.execute(sql, (self.query, ))
+        self.exists = len(myCursor.fetchall())
 
-        return tuple(cleaned)
 
-    # Cleans values to be used in search queries
-    def cleanQuery(toClean) -> str:
-        illegalChar = ["'", "[", "]", "%"]
+    # Find bookmarks that contain part of a search query
+    def bookmark_name_search(self) -> list:
+        self.query = f"%{self.query}%"
+        sql = "SELECT * FROM bookmarks WHERE name LIKE %s"
 
-        for char in illegalChar:
-            toClean = toClean.replace(char, "")
-
-        toClean = toClean.replace(" ", "_")
-        toClean = "%{}%".format(toClean)
-    
-        return toClean
+        myCursor.execute(sql, (self.query, ))
+        self.bookmarks = myCursor.fetchall()
+        
+        if self.bookmarks == []:
+            raise NotFoundError(f"Unable to find bookmark with name like {self.query}.")
