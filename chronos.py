@@ -33,30 +33,33 @@ importCmd = subParsers("import", "import bookmarks from html file", [("path", "p
 
 if __name__ == '__main__':
 
-    # Run setup
+    # Authenticates user
     commands.authenticate()
     parser.parse_args()
 
     actions = {
-        "ls": commands.listBookmarks,
-        "search": commands.searchBookmark,
-        "add": commands.addBookmark,
-        "edit": commands.editBookmark,
-        "delete": commands.deleteBookmark,
-        "import": commands.importBookmarks,
+        "ls": [commands.listBookmarks, object],
+        "search": [commands.search, object],
+        "add": [commands.addBookmark, str],
+        "edit": [commands.editBookmark, str],
+        "delete": [commands.deleteBookmark, str],
+        "import": [commands.importBookmarks, str]
     }
 
     # Call function from commands
-    toPrint = actions[str(sys.argv[1])](*sys.argv[2:])
+    command = str(sys.argv[1])
+    toPrint = actions[command][0](*sys.argv[2:])
 
 
     # If the function returned a tuple or list to be printed, print each value
-    if isinstance(toPrint[1], (list, tuple)):
-        for x in toPrint[1]:
+    if actions[command][1] == object:
+        for x in toPrint.bookmarks:
             print("\n{}".format(x))
+        
 
     # Otherwise just print returned value
     else:
         print("\n{}".format(toPrint))
 
-    print("\n")
+
+print()
