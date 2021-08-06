@@ -13,12 +13,11 @@ class BookmarkHTMLParser(HTMLParser):
         if isBookmark[0] and isBookmark[1]:
             for attr in attrs:
                 if attr[0] == "href":
-                    allBookmarks.append([attr])
+                    allBookmarks.append([attr[1]])
 
     def handle_data(self, data):
         if isBookmark[0] and isBookmark[1]:
-            last = len(allBookmarks)-1
-            allBookmarks[last].append(data)
+            allBookmarks[-1].insert(0, data)
             isBookmark[0] = False
             isBookmark[1] = False
 
