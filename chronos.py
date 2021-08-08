@@ -33,8 +33,6 @@ importCmd = subParsers("import", "import bookmarks from html file", [("path", "p
 
 if __name__ == '__main__':
 
-    # Authenticates user
-    commands.authenticate()
     parser.parse_args()
 
     actions = {
