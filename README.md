@@ -13,8 +13,14 @@ MySql database that stores bookmarks. Has a command line interface, using python
 - Filters
 
 ## Installation
+### Library Dependencies
+- MySQL Connector
+- Argparse
+- HTML Parser
+- psycopg2
+
 Clone the git repository
-`git clone https://github.com/PatrickTLuu/BookmarkDatabase.git`
+`git clone https://github.com/PatrickTLuu/ChronosBookmarks.git`
 
 Use a text editor to create a auth.config file in the repository
 ```bash
@@ -24,12 +30,8 @@ vim auth.config
 
 Configure mysql database authentication
 ```conf
+host=localhost
 database=ChronosBookmarks
-username=       
+user=       
 password=   
 ```      
-
-### Library Dependencies
-- MySQL Connector
-- Argparse
-- HTML Parser
